@@ -1,0 +1,332 @@
+﻿// Each #kernel tells which function to compile; you can have many kernels
+#pragma kernel H0CSMain
+#pragma kernel FrequencyCSMain
+#pragma kernel CreateButterflyCSMain
+#pragma kernel FFTHorizontalCSMain
+#pragma kernel FFTVerticalCSMain
+#pragma kernel GenerationDisplaceCSMain
+#pragma kernel NormalSpectrumCSMain
+#pragma kernel GenerationNormalCSMain
+#pragma kernel GenerationBubblesCSMain
+
+float RandomSeed1;
+float RandomSeed2;
+float Size;
+float SpaceSize;
+float AMPScale;
+float WindDir;
+float WindSpeed;
+float WindBias;
+float WindMove;
+float WindMink;
+float WaveChop;
+float Time;
+float Loop;
+float LoopPeriod;
+float Depth;
+uint DisplaceChannel;
+uint NormalChannel;
+uint Stage;
+
+Texture2D<float4> GaussianTexture;
+RWTexture2D<float4> H0Result;
+RWTexture2D<float4> SpectrumX;
+RWTexture2D<float4> SpectrumY;
+RWTexture2D<float4> SpectrumZ;
+RWTexture2D<float4> ButterflyRT;
+RWTexture2D<float4> FFTInputRT;
+RWTexture2D<float4> FFTOutputRT;
+RWTexture2D<float4> DisplacementOutputRT;
+RWTexture2D<float4> NormalX;
+RWTexture2D<float4> NormalZ;
+RWTexture2D<float4> NormalRT;
+RWTexture2D<float4> BubblesRT;
+
+#define PI 3.1415926
+#define TWOPI PI * 2
+#define G 9.8
+#define HALF_SQRT_2	0.7071068
+
+inline float UVRandom(float2 uv, float salt, float random)
+{
+    uv += float2(salt, random);
+    return frac(sin(dot(uv, float2(12.9898, 78.233))) * 43758.5453);
+}
+
+float2 WaveVector(float2 voxidx)
+{
+    float2 k =  voxidx - float2(Size * 0.5, Size * 0.5);
+    k *= TWOPI / SpaceSize;
+    return k;
+}
+
+inline float2 MultComplex(float2 a, float2 b)
+{
+    return float2(a.x * b.x - a.y * b.y, a.x * b.y + a.y * b.x);
+}
+
+
+inline float2 Conj(float2 a)
+{
+    return float2(a.x, -a.y);
+}
+
+float Grandom(float u0, float u1, float sigma)
+{
+    // Given two independent random variables u0 and u1, use the Box-Muller
+    // transformation to generate a Gaussian random distribution with the given
+    // standard deviation.
+    return cos(u0 * (PI*2)) * sqrt(-2 * log(u1)) * sigma;
+}
+
+float2 Guass(float2 uv, float r1, float r2)
+{
+    float2 r;
+    float rand1 = UVRandom(uv, 10.612, r1);
+    float rand2 = UVRandom(uv, 11.899, r2);
+    rand1 = clamp(rand1, 0.01, 1);
+    rand2 = clamp(rand2, 0.01, 1);
+    float x = sqrt(-2 * log(rand1));
+    float y = 2 * PI * rand2;
+    r.x = x * cos(y);
+    r.y = x * sin(y);
+    return r;
+}
+
+float phillips(float2 k)
+{
+    float kLength = length(k);
+    if(kLength < 0.00001){
+        return 0.00001;
+    }
+    float2 kn = normalize(k);
+    float L = WindSpeed * WindSpeed / G;
+    
+    float L2 = L * L;
+
+    //phillips谱
+    float kLength2 = kLength * kLength;
+    float kLength2L2 = kLength2 * L2;
+    float kLength2l2 = kLength2 * WindMink * WindMink;
+    float kLength4 = kLength2 * kLength2;
+    float P = AMPScale * exp(-1 / kLength2L2 - kLength2l2) / kLength4;
+    // Compute wind power as amount wave aligned with wind.
+    float2 Windvector = normalize(float2(cos(WindDir), sin(WindDir)));
+    float windp = dot(Windvector, k) / kLength;
+    // Wave moving in opposite direction from wind, reduce wind power.
+    if (windp < 0 && WindMove > 0)
+        windp *= saturate(1 - WindMove);
+    // Increase amplitudes for waves aligned with wind in either direction.
+    P *= pow(abs(windp), WindBias);
+    return sqrt(P) * HALF_SQRT_2;
+}
+
+//计算弥散
+float Dispersion(float2 k)
+{
+    // float kl = length(k);
+    // float frequency = sqrt(tanh(Depth * kl) * kl * G);
+    float frequency = sqrt(G * max(0.00001f, length(k)));
+    if(Loop > 0.5){
+        float quantperiod = TWOPI / max(0.01, LoopPeriod);
+        frequency = uint(frequency / quantperiod) * quantperiod;
+    }
+    return frequency;
+}
+
+[numthreads(8,8,1)]
+void H0CSMain (uint3 id : SV_DispatchThreadID)
+{
+    // TODO: insert actual code here!
+    float2 k = WaveVector(id.xy);
+    // float2 uv = id.xy / Size;
+    // float4 gauss = float4(Guass(uv, RandomSeed1/2, RandomSeed1*2), Guass(uv, RandomSeed1, RandomSeed1));
+    float4 gauss =  GaussianTexture[id.xy].xyzw;
+    float H0k = phillips(k);
+    float Hm0k = phillips(-k);
+    H0Result[id.xy] = float4(H0k*gauss.x, H0k*gauss.y, Hm0k*gauss.z, Hm0k*gauss.w);
+    // H0Result[id.xy] = float4(H0k, Hm0k, 0, 1);
+}
+
+[numthreads(8,8,1)]
+void FrequencyCSMain (uint3 id : SV_DispatchThreadID)
+{
+    // TODO: insert actual code here!
+    float2 k = WaveVector(id.xy);
+    // TODO: insert actual code here!
+    float4 H0k_H0mk = H0Result[id.xy].xyzw;
+    float2 H0k = H0k_H0mk.xy;
+    float2 H0mk = H0k_H0mk.zw * float2(1, -1);
+
+    float w = Dispersion(k) * Time;
+    float c = cos(w);
+    float s = sin(w);
+    float2 HKtx = MultComplex(H0k, float2(c, s));
+    float2 HKty = MultComplex(H0mk, float2(c, -s));
+    
+    float2 HTilde = HKtx + HKty;
+
+    float ksqrt = dot(k, k);
+    float rsqr_k = 0;
+    if (ksqrt > 0.000001f)
+    {
+        rsqr_k = 1 / sqrt(ksqrt);
+    }
+    float2 Knorm = k * rsqr_k;
+    
+    float2 KxHTilde = MultComplex(float2(0, -Knorm.x), HTilde) * WaveChop;
+    float2 kzHTilde = MultComplex(float2(0, -Knorm.y), HTilde) * WaveChop;
+    
+    SpectrumX[id.xy] = float4(KxHTilde, 0, 1);
+    SpectrumY[id.xy] = float4(HTilde, 0, 1);
+    SpectrumZ[id.xy] = float4(kzHTilde, 0, 1);
+}
+
+[numthreads(8, 8, 1)]
+void CreateButterflyCSMain(uint3 id : SV_DispatchThreadID){
+    //twiddle exponent
+    float k = id.y * (Size / pow(2, id.x + 1)) % Size;
+    float2 twiddle = float2(cos(2*PI*k/Size), sin(2*PI*k/Size));
+    // Stride
+    uint butterflySpan = uint(pow(2, id.x));
+    // Judege ButterflyWing is TopWing or BottomWing
+    //Wing==1，该stage所求范围的前半部分，必定是相加得来; Wing==0，该stage所求范围的后半部分，必定是相减得来
+    uint butterflyWing = 0;
+    if(id.y % pow(2, id.x + 1) < pow(2, id.x)){
+        butterflyWing = 1;
+    }
+    else{
+        butterflyWing = 0;
+    }
+
+    //first stage, bit reversed indices
+    if(id.x == 0){
+        // Invert Order
+        uint InitIndices[512]; //array dimensions must be literal scalar expressions
+        uint Levels = log2(Size);
+        for (uint j = 0; j < Size; j++){
+            InitIndices[j] = 0;
+        }
+        for (uint i = 0; i < Size; i++){
+            uint reverse = 0;
+            for (uint j = 0; j < Levels; j++){
+                reverse = reverse << 1;
+                uint t = i >> j;
+                //判断当前level奇偶
+                uint odd = t & 1;
+                if(odd == 1){
+                    reverse += 1;
+                }
+            }
+            InitIndices[i] = reverse;
+        }
+
+        if(butterflyWing == 1){
+            ButterflyRT[id.xy] = float4(twiddle, InitIndices[id.y], InitIndices[id.y + 1]);
+        }
+        else{
+            ButterflyRT[id.xy] = float4(twiddle, InitIndices[id.y - 1], InitIndices[id.y]);
+        }
+    }
+    else{
+        if(butterflyWing == 1){
+            ButterflyRT[id.xy] = float4(twiddle, id.y, id.y + butterflySpan);
+        }
+        else{
+            ButterflyRT[id.xy] = float4(twiddle, id.y - butterflySpan, id.y);
+        }
+    }
+}
+
+[numthreads(8, 8, 1)]
+void FFTHorizontalCSMain(uint3 id: SV_DispatchThreadID){
+    float4 data = ButterflyRT[float2(Stage, id.x)].xyzw;
+    float2 p = FFTInputRT[float2(data.z, id.y)].xy;
+    float2 q = FFTInputRT[float2(data.w, id.y)].xy;
+    float2 w = data.xy * float2(1,-1);
+    float2 H = p + MultComplex(w, q);
+    FFTOutputRT[id.xy] = float4(H, 0, 1);
+}
+
+[numthreads(8, 8, 1)]
+void FFTVerticalCSMain(uint3 id: SV_DispatchThreadID){
+    float4 data = ButterflyRT[float2(Stage, id.y)].xyzw;
+    float2 p = FFTInputRT[float2(id.x, data.z)].xy;
+    float2 q = FFTInputRT[float2(id.x, data.w)].xy;
+    float2 w = data.xy * float2(1,-1);
+    float2 H = p + MultComplex(w, q);
+    FFTOutputRT[id.xy] = float4(H, 0, 1);
+}
+
+[numthreads(8, 8, 1)]
+void GenerationDisplaceCSMain(uint3 id: SV_DispatchThreadID)
+{
+    float perms[] = {1.0, -1.0};
+    uint index = uint((uint(id.x + id.y)) % 2);
+    float perm = perms[index];
+
+    float4 displace = DisplacementOutputRT[id.xy];
+    // float current_displace = length(InputRT[id.xy].xy) / N;
+    float current_displace = FFTInputRT[id.xy].x / (Size) * perm * 0.5;
+    if(DisplaceChannel == 0){
+        DisplacementOutputRT[id.xy] = float4(current_displace, displace.y, displace.z, 1);
+    }
+    else if(DisplaceChannel == 1){
+        DisplacementOutputRT[id.xy] = float4(displace.x, current_displace, displace.z, 1);
+    }
+    else if(DisplaceChannel == 2){
+        DisplacementOutputRT[id.xy] = float4(displace.x, displace.y, current_displace, 1);
+    }
+}
+
+[numthreads(8, 8, 1)]
+void NormalSpectrumCSMain(uint3 id: SV_DispatchThreadID){
+    // float2 k = float2(2 * PI * id.x / Res - PI, 2 * PI * id.y / Res - PI);
+    float2 k = (id.xy - floor(Size / 2)) * TWOPI / SpaceSize;
+    float2 HTilde = SpectrumY[id.xy].xy;
+    float2 deltaHx = MultComplex(float2(0, k.x), HTilde);
+    float2 deltaHz = MultComplex(float2(0, k.y), HTilde);
+
+    NormalX[id.xy] = float4(deltaHx, 0, 0);
+    NormalZ[id.xy] = float4(deltaHz, 0, 0);
+}
+
+[numthreads(8, 8, 1)]
+void GenerationNormalCSMain(uint3 id: SV_DispatchThreadID) 
+{
+    float perms[] = {1.0, -1.0};
+    uint index = uint((uint(id.x + id.y)) % 2);
+    float perm = perms[index];
+
+    float4 normal = NormalRT[id.xy];
+    float s = sign(FFTInputRT[id.xy].x * perm);
+    // float current_normal =  length(InputRT[id.xy].xy) / (N);
+    float current_normal = FFTInputRT[id.xy].x / (Size) * perm* 0.5;
+    if(NormalChannel == 0){
+        NormalRT[id.xy] = float4(current_normal, 1, normal.z, 1);
+    }
+    else if(NormalChannel == 1){
+        NormalRT[id.xy] = float4(normal.x, 1, current_normal, 1);
+    }
+    else if(NormalChannel == 2){
+        float3 final_normal = normalize(normal.xyz);
+        NormalRT[id.xy] = float4(final_normal, 1);
+    }
+}
+
+[numthreads(8, 8, 1)]
+void GenerationBubblesCSMain(uint3 id: SV_DispatchThreadID)
+{
+    //jacobian
+    float2 dDdy = -0.5 * (DisplacementOutputRT[id.xy+float2(0,-5)].rb - DisplacementOutputRT[id.xy+float2(0,5)].rb);
+    float2 dDdx = -0.5 * (DisplacementOutputRT[id.xy+float2(-5,0)].rb - DisplacementOutputRT[id.xy+float2(5,0)].rb);
+    float2 noise = 0.3 * NormalRT[id.xy].xz;
+    float jacobian = (1 + dDdx.x) * (1 + dDdy.y) - dDdx.y * dDdy.x;
+    float trub = saturate(1 - jacobian + length(noise));
+    float xx = 1 + 3 * smoothstep(1.2, 1.8, trub);
+    xx = min(trub, 1);
+    xx = smoothstep(0, 1, trub);
+
+    BubblesRT[id.xy] = float4(xx, xx, xx, 1);
+}
+

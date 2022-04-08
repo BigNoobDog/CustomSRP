@@ -1,0 +1,65 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0bbd6948f1054eff8c06e2f3b3e21807, type: 3}
+  m_Name: Custom Rneder Pipeline Asset
+  m_EditorClassIdentifier: 
+  renderPipelineType: 1
+  cameraBuffer:
+    allowHDR: 1
+    copyColor: 1
+    copyColorReflection: 1
+    copyDepth: 1
+    copyDepthReflection: 1
+    renderScale: 1
+    bicubicRescaling: 0
+    fxaa:
+      enabled: 1
+      fixedThreshold: 0.0833
+      relativeThreshold: 0.166
+      subpixelBlending: 0.75
+      quality: 2
+  useDynamicBatching: 0
+  useGPUInstancing: 1
+  useSRPBatcher: 1
+  useLightsPerObject: 0
+  shadows:
+    maxDistance: 20
+    distanceFade: 0.1
+    addLight:
+      atlasSize: 4096
+      filter: 3
+    directional:
+      atlasSize: 2048
+      filter: 1
+      cascadeCount: 4
+      cascadeRatio1: 0.1
+      cascadeRatio2: 0.25
+      cascadeRatio3: 0.5
+      cascadeFade: 0.1
+      cascadeBlend: 1
+  postProcessingSettings: {fileID: 11400000, guid: 32fa3deed47b796449a4d9640cd45ee1, type: 2}
+  planarReflectionSettings:
+    m_Enable: 1
+    m_ResolutionMultiplier: 1
+    m_ClipPlaneOffset: 0.07
+    m_ReflectLayers:
+      serializedVersion: 2
+      m_Bits: 39
+    m_Shadows: 0
+    followZeroPlan: 1
+  colorLUTResolution: 64
+  cameraRendererShader: {fileID: 4800000, guid: acc027775c55a6145aefa82e999575a4, type: 3}
+  pipelineLightSetting:
+    areaLightLutCS: {fileID: 7200000, guid: 482ce312c02667b40a8227d50d2ca447, type: 3}
+    matLUT: {fileID: 2800000, guid: b7100094aaaaf1f4d8b3b0f2a3703192, type: 3}
+    ampLUT: {fileID: 2800000, guid: 337a96fbd2e54c3468998810f1afd198, type: 3}
+    AreaLightMat: {fileID: 2100000, guid: d25c2d444d68dc146a76a0f3028dbf50, type: 2}
