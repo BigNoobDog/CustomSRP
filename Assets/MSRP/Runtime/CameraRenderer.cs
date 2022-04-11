@@ -25,6 +25,8 @@ namespace MSRP
 
         static CameraSettings defaultCameraSettings = new CameraSettings();
 
+        private PreIntegrateBRDF PreIntegrateBrdf = new PreIntegrateBRDF();
+
         static bool copyTextureSupported =
             SystemInfo.copyTextureSupport > CopyTextureSupport.None;
 
@@ -65,11 +67,15 @@ namespace MSRP
         
         private Camera pr_camera;
 
+        private TAA taa = new TAA();
+
         private CameraBufferSettings bufferSettings;
+
+        private VelocityBufferRenderer velocityBufferRenderer = new VelocityBufferRenderer();
 
         public CameraRenderer(Shader shader)
         {
-            material = CoreUtils.CreateEngineMaterial(shader);
+            material = MSRPCoreUtils.CreateEngineMaterial(shader);
             missingTexture = new Texture2D(1, 1)
             {
                 hideFlags = HideFlags.HideAndDontSave,
@@ -117,36 +123,38 @@ namespace MSRP
             buffer.BeginSample(SampleName);
             buffer.SetGlobalTexture(colorTextureId, missingTexture);
             buffer.SetGlobalTexture(depthTextureId, missingTexture);
+
+            if (bufferSettings.antiAliasingType == CameraBufferSettings.AntiAliasingType.TAA)
+            {
+                taa.SetUp(context, camera, bufferSettings.taaSetting);
+            }
+            PreIntegrateBrdf.SetUp(context, colorAttachmentId);
             ExecuteBuffer();
         }
 
         public void Dispose()
         {
-            CoreUtils.Destroy(material);
-            CoreUtils.Destroy(missingTexture);
+            MSRPCoreUtils.Destroy(material);
+            MSRPCoreUtils.Destroy(missingTexture);
         }
 
         public void Render(
-            ScriptableRenderContext context, Camera camera,
-            RenderPipelineType renderPipelineType,
-            CameraBufferSettings bufferSettings,
-            bool useDynamicBatching, bool useGPUInstancing, bool useLightsPerObject,
-            ShadowSettings shadowSettings, PostProcessingSetting postProcessingSettings,
-            int colorLUTResolution, PipelineLightSetting pipelineLightSetting,
+            ScriptableRenderContext context, 
+            Camera camera,
+            RenderPiplineData data,
             bool drawAddtion = true
         )
         {
             this.context = context;
             this.camera = camera;
-            this.bufferSettings = bufferSettings;
-            this.shadowSettings = shadowSettings;
-            this.useLightsPerObject = useLightsPerObject;
-            this.useDynamicBatching = useDynamicBatching;
-            this.useGPUInstancing = useGPUInstancing;
-            this.shadowSettings = shadowSettings;
-            this.postProcessingSettings = postProcessingSettings;
-            this.colorLUTResolution = colorLUTResolution;
-            this.pipelineLightSetting = pipelineLightSetting;
+            bufferSettings = data.cameraBuffer;
+            shadowSettings = data.shadows;
+            useLightsPerObject = data.useLightsPerObject;
+            useDynamicBatching = data.useDynamicBatching;
+            useGPUInstancing = data.useGPUInstancing;
+            postProcessingSettings = data.postProcessingSettings;
+            colorLUTResolution = (int)data.colorLUTResolution;
+            pipelineLightSetting = data.pipelineLightSetting;
 
             var crpCamera = camera.GetComponent<CustomRenderPipelineCamera>();
             CameraSettings cameraSettings =
@@ -196,22 +204,28 @@ namespace MSRP
                 bufferSize.x, bufferSize.y
             ));
             ExecuteBuffer();
+            // if (drawAddtion)
+            // {
+                //velocityBufferRenderer.Setup(context, camera, cullingResults, bufferSize);
+            // }
+            
             lighting.Setup(
                 context, cullingResults, shadowSettings, useLightsPerObject,
                 cameraSettings.maskLights ? cameraSettings.renderingLayerMask : -1,
                 pipelineLightSetting
             );
 
-            bufferSettings.fxaa.enabled &= cameraSettings.allowFXAA;
+            bufferSettings.fxaaSetting.enabled = 
+                (cameraSettings.allowFXAA && bufferSettings.antiAliasingType == CameraBufferSettings.AntiAliasingType.FXAA);
             postProcessingStack.Setup(
                 context, camera, bufferSize, postProcessingSettings, cameraSettings.keepAlpha, useHDR,
                 colorLUTResolution, cameraSettings.finalBlendMode,
-                bufferSettings.bicubicRescaling, bufferSettings.fxaa
+                bufferSettings.bicubicRescaling, bufferSettings.fxaaSetting
             );
             buffer.EndSample(SampleName);
+            
             Setup();
             
-
             if (drawAddtion && (camera.cameraType == CameraType.Game || camera.cameraType == CameraType.SceneView))
             {
                 lighting.DrawAreaLight();
@@ -223,6 +237,12 @@ namespace MSRP
             );
             DrawUnsupportedShaders();
             DrawGizmosBeforeFX();
+            
+            if (bufferSettings.antiAliasingType == CameraBufferSettings.AntiAliasingType.TAA)
+            {
+                taa.Render(colorAttachmentId, bufferSize, useHDR ? RenderTextureFormat.DefaultHDR : RenderTextureFormat.Default);
+            }
+            
             if (postProcessingStack.IsActive)
             {
                 postProcessingStack.Render(colorAttachmentId);
@@ -253,6 +273,7 @@ namespace MSRP
         void Cleanup()
         {
             lighting.Cleanup();
+            velocityBufferRenderer.Cleanup();
             if (useIntermediateBuffer)
             {
                 buffer.ReleaseTemporaryRT(colorAttachmentId);
@@ -267,6 +288,11 @@ namespace MSRP
                     buffer.ReleaseTemporaryRT(depthTextureId);
                 }
             }
+            if (bufferSettings.antiAliasingType != CameraBufferSettings.AntiAliasingType.TAA)
+            {
+                taa.ClearUp();
+            }
+            PreIntegrateBrdf.ClearUp();
         }
 
         void Submit()

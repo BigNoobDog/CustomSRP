@@ -9,6 +9,7 @@ namespace MSRP.Editor
         MaterialEditor editor;
         Object[] materials;
         MaterialProperty[] properties;
+        const string MotionVectorPassName = "MotionVectors";
 
         bool showPresets;
 
@@ -74,6 +75,14 @@ namespace MSRP.Editor
             MaterialEditor materialEditor, MaterialProperty[] properties
         )
         {
+            materialEditor.PropertiesDefaultGUI(properties);
+
+            foreach(var obj in materialEditor.targets)
+            {
+                var material = obj as UnityEngine.Material;
+                material.SetShaderPassEnabled(MotionVectorPassName, false);
+            }
+            
             EditorGUI.BeginChangeCheck();
             base.OnGUI(materialEditor, properties);
             editor = materialEditor;

@@ -91,7 +91,7 @@ namespace MSRP
 
         CameraBufferSettings.BicubicRescalingMode bicubicRescaling;
 
-        CameraBufferSettings.FXAA fxaa;
+        CameraBufferSettings.FXAASetting _fxaaSetting;
 
         public bool IsActive => settings != null;
 
@@ -111,10 +111,10 @@ namespace MSRP
             PostProcessingSetting settings, bool keepAlpha, bool useHDR, int colorLUTResolution,
             CameraSettings.FinalBlendMode finalBlendMode,
             CameraBufferSettings.BicubicRescalingMode bicubicRescaling,
-            CameraBufferSettings.FXAA fxaa
+            CameraBufferSettings.FXAASetting fxaaSetting
         )
         {
-            this.fxaa = fxaa;
+            this._fxaaSetting = fxaaSetting;
             this.bicubicRescaling = bicubicRescaling;
             this.bufferSize = bufferSize;
             this.finalBlendMode = finalBlendMode;
@@ -315,12 +315,12 @@ namespace MSRP
 
         void ConfigureFXAA()
         {
-            if (fxaa.quality == CameraBufferSettings.FXAA.Quality.Low)
+            if (_fxaaSetting.quality == CameraBufferSettings.FXAASetting.Quality.Low)
             {
                 buffer.EnableShaderKeyword(fxaaQualityLowKeyword);
                 buffer.DisableShaderKeyword(fxaaQualityMediumKeyword);
             }
-            else if (fxaa.quality == CameraBufferSettings.FXAA.Quality.Medium)
+            else if (_fxaaSetting.quality == CameraBufferSettings.FXAASetting.Quality.Medium)
             {
                 buffer.DisableShaderKeyword(fxaaQualityLowKeyword);
                 buffer.EnableShaderKeyword(fxaaQualityMediumKeyword);
@@ -332,7 +332,7 @@ namespace MSRP
             }
 
             buffer.SetGlobalVector(fxaaConfigId, new Vector4(
-                fxaa.fixedThreshold, fxaa.relativeThreshold, fxaa.subpixelBlending
+                _fxaaSetting.fixedThreshold, _fxaaSetting.relativeThreshold, _fxaaSetting.subpixelBlending
             ));
         }
 
@@ -367,7 +367,7 @@ namespace MSRP
 
             buffer.SetGlobalFloat(finalSrcBlendId, 1f);
             buffer.SetGlobalFloat(finalDstBlendId, 0f);
-            if (fxaa.enabled)
+            if (_fxaaSetting.enabled)
             {
                 ConfigureFXAA();
                 buffer.GetTemporaryRT(
@@ -382,7 +382,7 @@ namespace MSRP
 
             if (bufferSize.x == camera.pixelWidth)
             {
-                if (fxaa.enabled)
+                if (_fxaaSetting.enabled)
                 {
                     DrawFinal(
                         colorGradingResultId, keepAlpha ? Pass.FXAA : Pass.FXAAWithLuma
@@ -401,7 +401,7 @@ namespace MSRP
                     FilterMode.Bilinear, RenderTextureFormat.Default
                 );
 
-                if (fxaa.enabled)
+                if (_fxaaSetting.enabled)
                 {
                     Draw(
                         colorGradingResultId, finalResultId,

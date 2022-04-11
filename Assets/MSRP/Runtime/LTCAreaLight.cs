@@ -65,7 +65,7 @@ namespace MSRP
                 hideFlags = HideFlags.HideAndDontSave,
                 wrapMode = TextureWrapMode.Clamp,
                 filterMode = FilterMode.Bilinear,
-                name = CoreUtils.GetTextureAutoName(k_LtcLUTResolution, k_LtcLUTResolution, TextureFormat.RGBAHalf, depth: 2, dim: TextureDimension.Tex2DArray, name: "LTC_LUT")
+                name = MSRPCoreUtils.GetTextureAutoName(k_LtcLUTResolution, k_LtcLUTResolution, TextureFormat.RGBAHalf, depth: 2, dim: TextureDimension.Tex2DArray, name: "LTC_LUT")
             };
             
             LoadLUT(m_LtcData, 0, TextureFormat.RGBAHalf, s_LtcGGXMatrixData);
@@ -77,7 +77,7 @@ namespace MSRP
 
         public void CleanUp()
         {
-            CoreUtils.Destroy(m_LtcData);
+            MSRPCoreUtils.Destroy(m_LtcData);
         }
         
         public void Bind(CommandBuffer cmd)

@@ -3,9 +3,9 @@
 
 struct Surface {
 	float3 position;
-	float3 normal;
+	float3 normalWS;
 	float3 interpolatedNormal;
-	float3 viewDirection;
+	float3 viewDirectionWS;
 	float depth;
 	float3 color;
 	float alpha;

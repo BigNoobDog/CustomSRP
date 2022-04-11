@@ -62,15 +62,15 @@ void InitializeSurfaceData(Varyings input, InputConfig config, out Surface surfa
 	#endif
 	surface.position = input.positionWS;
 	#if defined(_NORMAL_MAP)
-	surface.normal = NormalTangentToWorld(
+	surface.normalWS = NormalTangentToWorld(
 		GetNormalTS(config), input.normalWS, input.tangentWS
 	);
 	surface.interpolatedNormal = input.normalWS;
 	#else
-	surface.normal = normalize(input.normalWS);
-	surface.interpolatedNormal = surface.normal;
+	surface.normalWS = normalize(input.normalWS);
+	surface.interpolatedNormal = surface.normalWS;
 	#endif
-	surface.viewDirection = normalize(_WorldSpaceCameraPos - input.positionWS);
+	surface.viewDirectionWS = normalize(_WorldSpaceCameraPos - input.positionWS);
 	surface.depth = -TransformWorldToView(input.positionWS).z;
 	surface.color = base.rgb;
 	surface.alpha = base.a;
@@ -93,10 +93,11 @@ float3 GetDirectLightBRDF(Light light, Surface surface, BRDF brdf)
 	}
 	else
 	{
-		float3 directSpecular = GetDirectBRDF(surface, brdf, light.direction) * brdf.specular + brdf.diffuse;
-		float3 directDiffuse = saturate(dot(surface.normal, light.direction)) * light.color * light.attenuation;
+		float NoL = saturate(dot(surface.normalWS, normalize(light.direction)));
+		float3 directSpecular = GetDirectBRDF(surface, brdf, light.direction) * light.color * (light.attenuation * NoL);
+		float3 directDiffuse = light.color * (light.attenuation * NoL) * brdf.diffuse / PI;
 		
-		return directSpecular * directDiffuse;
+		return directSpecular + directDiffuse;
 	}
 }
 
@@ -153,6 +154,7 @@ float4 LitPassFragment(Varyings input ) : SV_TARGET
 	}
 	#endif
 	color += GetEmission(config);
+	color = float3(max(color.r,0), max(color.g,0), max(color.b,0));
 	return float4(color, GetFinalAlpha(surface.alpha));
 }
 #endif

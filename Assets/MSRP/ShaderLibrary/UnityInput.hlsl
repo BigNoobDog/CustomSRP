@@ -48,6 +48,16 @@ float4 _ProjectionParams;
 float4 _ScreenParams;
 float4 _ZBufferParams;
 
+
+//X : Use last frame positions (right now skinned meshes are the only objects that use this
+//Y : Force No Motion
+//Z : Z bias value
+float4 unity_MotionVectorsParams;
+
+// Previous Model Matrix
+float4x4 unity_MatrixPreviousM;
+
+
 #if UNITY_REVERSED_Z
 #if SHADER_API_OPENGL || SHADER_API_GLES || SHADER_API_GLES3
 //GL with reversed z => z clip range is [near, -far] -> should remap in theory but dont do it in practice to save some perf (range is close enough)
@@ -65,4 +75,35 @@ float4 _ZBufferParams;
 #define UNITY_Z_0_FAR_FROM_CLIPSPACE(coord) (coord)
 #endif
 
+
+
+#if defined(LIGHTMAP_ON)
+#define GI_ATTRIBUTE_DATA float2 lightMapUV : TEXCOORD1;
+#define GI_VARYINGS_DATA float2 lightMapUV : VAR_LIGHT_MAP_UV;
+#define TRANSFER_GI_DATA(input, output) \
+output.lightMapUV = input.lightMapUV * \
+unity_LightmapST.xy + unity_LightmapST.zw;
+#define GI_FRAGMENT_DATA(input) input.lightMapUV
+#else
+#define GI_ATTRIBUTE_DATA
+#define GI_VARYINGS_DATA
+#define TRANSFER_GI_DATA(input, output)
+#define GI_FRAGMENT_DATA(input) 0.0
+#endif
+
+TEXTURE2D(unity_Lightmap);
+SAMPLER(samplerunity_Lightmap);
+
+TEXTURE2D(unity_ShadowMask);
+SAMPLER(samplerunity_ShadowMask);
+
+TEXTURE3D_FLOAT(unity_ProbeVolumeSH);
+SAMPLER(samplerunity_ProbeVolumeSH);
+
+TEXTURE2D(_PlanarReflectionTexture);
+TEXTURECUBE(unity_SpecCube0);
+SAMPLER(samplerunity_SpecCube0);
+
+TEXTURECUBE(_PreIntegrateBRDF);
+SAMPLER(sampler_PreIntegrateBRDF);
 #endif

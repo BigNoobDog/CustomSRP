@@ -3,36 +3,6 @@
 #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/EntityLighting.hlsl"
 #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/ImageBasedLighting.hlsl"
 
-#if defined(LIGHTMAP_ON)
-	#define GI_ATTRIBUTE_DATA float2 lightMapUV : TEXCOORD1;
-	#define GI_VARYINGS_DATA float2 lightMapUV : VAR_LIGHT_MAP_UV;
-#define TRANSFER_GI_DATA(input, output) \
-	output.lightMapUV = input.lightMapUV * \
-	unity_LightmapST.xy + unity_LightmapST.zw;
-	#define GI_FRAGMENT_DATA(input) input.lightMapUV
-#else
-#define GI_ATTRIBUTE_DATA
-#define GI_VARYINGS_DATA
-#define TRANSFER_GI_DATA(input, output)
-#define GI_FRAGMENT_DATA(input) 0.0
-#endif
-
-TEXTURE2D(unity_Lightmap);
-SAMPLER(samplerunity_Lightmap);
-
-TEXTURE2D(unity_ShadowMask);
-SAMPLER(samplerunity_ShadowMask);
-
-TEXTURE3D_FLOAT(unity_ProbeVolumeSH);
-SAMPLER(samplerunity_ProbeVolumeSH);
-
-#if defined(_REFLECTION_PLANARREFLECTION) && defined(_ENABLE_PLANARREFLECTION)
-TEXTURE2D(_PlanarReflectionTexture);
-#else
-TEXTURECUBE(unity_SpecCube0);
-SAMPLER(samplerunity_SpecCube0);
-#endif
-
 struct GI
 {
     float3 diffuse;
@@ -90,7 +60,7 @@ float3 SampleLightProbe (Surface surface) {
 	if (unity_ProbeVolumeParams.x) {
 		return SampleProbeVolumeSH4(
 			TEXTURE3D_ARGS(unity_ProbeVolumeSH, samplerunity_ProbeVolumeSH),
-			surface.position, surface.normal,
+			surface.position, surface.normalWS,
 			unity_ProbeVolumeWorldToObject,
 			unity_ProbeVolumeParams.y, unity_ProbeVolumeParams.z,
 			unity_ProbeVolumeMin.xyz, unity_ProbeVolumeSizeInv.xyz
@@ -106,7 +76,7 @@ float3 SampleLightProbe (Surface surface) {
 		coefficients[4] = unity_SHBg;
 		coefficients[5] = unity_SHBb;
 		coefficients[6] = unity_SHC;
-		return max(0.0, SampleSH9(coefficients, surface.normal));
+		return max(0.0, SampleSH9(coefficients, surface.normalWS));
 	}
 	#endif
 }
@@ -127,12 +97,10 @@ float3 SampleEnvironment (Surface surfaceWS, BRDF brdf) {
 	#else
 
 	
-	float3 uvw = reflect(-surfaceWS.viewDirection, surfaceWS.normal);
+	float3 reflectVector = reflect(-surfaceWS.viewDirectionWS, surfaceWS.normalWS);
 	float mip = PerceptualRoughnessToMipmapLevel(brdf.perceptualRoughness);
-	float4 environment = SAMPLE_TEXTURECUBE_LOD(
-		unity_SpecCube0, samplerunity_SpecCube0, uvw, mip
-	);
-	return DecodeHDREnvironment(environment, unity_SpecCube0_HDR);
+	float4 environment = SAMPLE_TEXTURECUBE_LOD(unity_SpecCube0, samplerunity_SpecCube0, reflectVector, mip);
+	return DecodeHDREnvironment(environment, unity_SpecCube0_HDR) * surfaceWS.occlusion;
 
 	#endif
 

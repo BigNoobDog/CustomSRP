@@ -35,7 +35,7 @@ namespace MSRP
             if(_reflectionCamera)
             {
                 _reflectionCamera.targetTexture = null;
-                CoreUtils.SafeDestroy(_reflectionCamera.gameObject);
+                MSRPCoreUtils.SafeDestroy(_reflectionCamera.gameObject);
             }
             if (_reflectionTexture)
             {

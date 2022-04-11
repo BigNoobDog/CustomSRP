@@ -347,8 +347,8 @@ float3 GetLTCDirectBRDF(Surface surface, float3 specularColor, float3 diffuseCol
     Rect.Axis[2] = cross(light.xAxis, light.yAxis);
     Rect.Extent = float2(light.areaData.zw);
 
-    float3 N = normalize(surface.normal);
-    float3 V = surface.viewDirection;
+    float3 N = normalize(surface.normalWS);
+    float3 V = surface.viewDirectionWS;
     float3 pos = surface.position;
     float clampedNdotV = ClampNdotV(dot(N, V));
 

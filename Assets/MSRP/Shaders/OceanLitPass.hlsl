@@ -50,9 +50,9 @@ void InitializeSurfaceData(Varyings input, InputConfig config, out Surface surfa
 {
 	float4 base = GetBase(config);
 	surface.position = input.positionWS;
-	surface.normal = GetNormalWS(config, length(_WorldSpaceCameraPos - input.positionWS));
-	surface.interpolatedNormal = surface.normal;
-	surface.viewDirection = normalize(_WorldSpaceCameraPos - input.positionWS);
+	surface.normalWS = GetNormalWS(config, length(_WorldSpaceCameraPos - input.positionWS));
+	surface.interpolatedNormal = surface.normalWS;
+	surface.viewDirectionWS = normalize(_WorldSpaceCameraPos - input.positionWS);
 	surface.depth = -TransformWorldToView(input.positionWS).z;
 	surface.color = base.rgb;
 	surface.alpha = base.a;
@@ -76,7 +76,7 @@ float3 GetDirectLightBRDF(Light light, Surface surface, BRDF brdf)
 	else
 	{
 		float3 directSpecular = GetDirectBRDF(surface, brdf, light.direction) * brdf.specular + brdf.diffuse;
-		float3 directDiffuse = saturate(dot(surface.normal, light.direction)) * light.color * light.attenuation;
+		float3 directDiffuse = saturate(dot(surface.normalWS, light.direction)) * light.color * light.attenuation;
 		
 		return directSpecular * directDiffuse;
 	}

@@ -5,6 +5,13 @@ using UnityEngine.Serialization;
 
 namespace MSRP
 {
+    public enum MotionBlurQuality
+    {
+        Low,
+        Medium,
+        High
+    }
+    
     [Serializable]
     public struct CameraBufferSettings
     {
@@ -21,12 +28,20 @@ namespace MSRP
             UpOnly,
             UpAndDown
         }
+        
+        public enum AntiAliasingType
+        {
+            None,
+            FXAA,
+            TAA
+        }
 
         public BicubicRescalingMode bicubicRescaling;
 
         [Serializable]
-        public struct FXAA
+        public struct FXAASetting
         {
+            [HideInInspector]
             public bool enabled;
 
             [Range(0.0312f, 0.0833f)] public float fixedThreshold;
@@ -44,8 +59,25 @@ namespace MSRP
 
             public Quality quality;
         }
+        
+        [Serializable]
+        public struct TAASetting
+        {
+            public MotionBlurQuality quality;
+            
+            [Range(0.0f, 1.0f)] public float feedback;
 
-        public FXAA fxaa;
+            [Range(0.0f, 1.0f)] public float spread;
+            
+            [HideInInspector]
+            public bool IsActive() => feedback > 0.0f;
+        }
+
+        public AntiAliasingType antiAliasingType;
+
+        public FXAASetting fxaaSetting;
+
+        public TAASetting taaSetting;
     }
     
     
@@ -113,16 +145,36 @@ namespace MSRP
         public GameObject OceanMesh;
     }
 
+    public enum ColorLUTResolution
+    {
+        _16 = 16,
+        _32 = 32,
+        _64 = 64
+    }
+
     [CreateAssetMenu(menuName = "Rendering/Custom Render Pipeline")]
     public partial class CustomRenderPipelineAsset : RenderPipelineAsset
     {
-        [SerializeField] private RenderPipelineType renderPipelineType;
-        
-        [SerializeField] CameraBufferSettings cameraBuffer = new CameraBufferSettings
+        [SerializeField]
+        public RenderPiplineData data;
+
+        protected override RenderPipeline CreatePipeline()
+        {
+            return new CustomRenderPipeline(data);
+        }
+    }
+
+
+    [Serializable]
+    public class RenderPiplineData
+    {
+        [SerializeField] public RenderPipelineType renderPipelineType;
+
+        [SerializeField] public CameraBufferSettings cameraBuffer = new CameraBufferSettings
         {
             allowHDR = true,
             renderScale = 1f,
-            fxaa = new CameraBufferSettings.FXAA
+            fxaaSetting = new CameraBufferSettings.FXAASetting
             {
                 fixedThreshold = 0.0833f,
                 relativeThreshold = 0.166f,
@@ -130,38 +182,22 @@ namespace MSRP
             }
         };
 
-        [SerializeField] bool
+        [SerializeField] public bool
             useDynamicBatching = true,
             useGPUInstancing = true,
             useSRPBatcher = true,
             useLightsPerObject = true;
 
-        [SerializeField] ShadowSettings shadows = default;
+        [SerializeField] public ShadowSettings shadows = default;
 
-        [FormerlySerializedAs("postFXSettings")] [SerializeField] PostProcessingSetting postProcessingSettings = default;
+        [SerializeField] public PostProcessingSetting postProcessingSettings = default;
 
-        [SerializeField] PlanarReflectionSettings planarReflectionSettings = default;
+        [SerializeField] public PlanarReflectionSettings planarReflectionSettings = default;
 
-        public enum ColorLUTResolution
-        {
-            _16 = 16,
-            _32 = 32,
-            _64 = 64
-        }
+        [SerializeField] public ColorLUTResolution colorLUTResolution = ColorLUTResolution._32;
 
-        [SerializeField] ColorLUTResolution colorLUTResolution = ColorLUTResolution._32;
+        [SerializeField] public Shader cameraRendererShader = default;
 
-        [SerializeField] Shader cameraRendererShader = default;
-
-        [FormerlySerializedAs("lightSetting")] [SerializeField] PipelineLightSetting pipelineLightSetting;
-
-        protected override RenderPipeline CreatePipeline()
-        {
-            return new CustomRenderPipeline(renderPipelineType, 
-                cameraBuffer, useDynamicBatching, useGPUInstancing, useSRPBatcher,
-                useLightsPerObject, shadows, postProcessingSettings, (int) colorLUTResolution,
-                cameraRendererShader, pipelineLightSetting, planarReflectionSettings
-            );
-        }
+        [SerializeField] public PipelineLightSetting pipelineLightSetting;
     }
 }

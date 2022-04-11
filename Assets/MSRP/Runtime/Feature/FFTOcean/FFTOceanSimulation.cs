@@ -61,19 +61,19 @@ namespace MSRP
 
         void CleanUp()
         {
-            CoreUtils.SafeDestroy(HZeroRT);
-            CoreUtils.SafeDestroy(SpectrumX);
-            CoreUtils.SafeDestroy(SpectrumY);
-            CoreUtils.SafeDestroy(SpectrumZ);
-            CoreUtils.SafeDestroy(ButterflyRT);
-            CoreUtils.SafeDestroy(PingTexture);
-            CoreUtils.SafeDestroy(PongTexture);
-            CoreUtils.SafeDestroy(Displacement);
-            CoreUtils.SafeDestroy(NormalX);
-            CoreUtils.SafeDestroy(NormalZ);
-            CoreUtils.SafeDestroy(NormalRT);
-            CoreUtils.SafeDestroy(BubblesRT);
-            CoreUtils.SafeDestroy(OceanMeshInstance);
+            MSRPCoreUtils.SafeDestroy(HZeroRT);
+            MSRPCoreUtils.SafeDestroy(SpectrumX);
+            MSRPCoreUtils.SafeDestroy(SpectrumY);
+            MSRPCoreUtils.SafeDestroy(SpectrumZ);
+            MSRPCoreUtils.SafeDestroy(ButterflyRT);
+            MSRPCoreUtils.SafeDestroy(PingTexture);
+            MSRPCoreUtils.SafeDestroy(PongTexture);
+            MSRPCoreUtils.SafeDestroy(Displacement);
+            MSRPCoreUtils.SafeDestroy(NormalX);
+            MSRPCoreUtils.SafeDestroy(NormalZ);
+            MSRPCoreUtils.SafeDestroy(NormalRT);
+            MSRPCoreUtils.SafeDestroy(BubblesRT);
+            MSRPCoreUtils.SafeDestroy(OceanMeshInstance);
         }
 
         private void Update()

@@ -7,6 +7,8 @@ namespace MSRP
     {
         CameraRenderer renderer;
 
+        private RenderPiplineData data;
+
         CameraBufferSettings cameraBufferSettings;
 
         bool useDynamicBatching, useGPUInstancing, useLightsPerObject;
@@ -26,28 +28,24 @@ namespace MSRP
         private RenderPipelineType renderPipelineType;
 
         public CustomRenderPipeline (
-            RenderPipelineType renderPipelineType,
-            CameraBufferSettings cameraBufferSettings,
-            bool useDynamicBatching, bool useGPUInstancing, bool useSRPBatcher,
-            bool useLightsPerObject, ShadowSettings shadowSettings,
-            PostProcessingSetting postProcessingSettings, int colorLUTResolution, Shader cameraRendererShader,
-            PipelineLightSetting pipelineLightSetting, PlanarReflectionSettings planarReflectionSettings
+            RenderPiplineData data
         )
         {
-            this.renderPipelineType = renderPipelineType;
-            this.colorLUTResolution = colorLUTResolution;
-            this.cameraBufferSettings = cameraBufferSettings;
-            this.postProcessingSettings = postProcessingSettings;
-            this.shadowSettings = shadowSettings;
-            this.useDynamicBatching = useDynamicBatching;
-            this.useGPUInstancing = useGPUInstancing;
-            this.useLightsPerObject = useLightsPerObject;
-            this.pipelineLightSetting = pipelineLightSetting;
-            this.planarReflectionSettings = planarReflectionSettings;
-            GraphicsSettings.useScriptableRenderPipelineBatching = useSRPBatcher;
+            this.data = data;
+            renderPipelineType = data.renderPipelineType;
+            colorLUTResolution = (int)data.colorLUTResolution;
+            cameraBufferSettings = data.cameraBuffer;
+            postProcessingSettings = data.postProcessingSettings;
+            shadowSettings = data.shadows;
+            useDynamicBatching = data.useDynamicBatching;
+            useGPUInstancing = data.useGPUInstancing;
+            useLightsPerObject = data.useLightsPerObject;
+            pipelineLightSetting = data.pipelineLightSetting;
+            planarReflectionSettings = data.planarReflectionSettings;
+            GraphicsSettings.useScriptableRenderPipelineBatching = data.useSRPBatcher;
             GraphicsSettings.lightsUseLinearIntensity = true;
             InitializeForEditor();
-            renderer = new CameraRenderer(cameraRendererShader);
+            renderer = new CameraRenderer(data.cameraRendererShader);
         }
 
         protected override void Render (ScriptableRenderContext context, Camera[] cameras) {
@@ -60,17 +58,14 @@ namespace MSRP
                     }
                     planarReflections.SetUp(planarReflectionSettings);
                     CameraBufferSettings planarReflectionCameraSetting = default;
-                    planarReflectionCameraSetting.fxaa.enabled = false;
+                    planarReflectionCameraSetting.fxaaSetting.enabled = false;
                     planarReflectionCameraSetting.allowHDR = cameraBufferSettings.allowHDR;
                     planarReflectionCameraSetting.bicubicRescaling = cameraBufferSettings.bicubicRescaling;
                     planarReflectionCameraSetting.renderScale = cameraBufferSettings.renderScale;
                     
                     planarReflections.ExecutePlanarReflections(context, camera, planarReflectionCameraSetting);
                     renderer.Render(
-                        context, PlanarReflections._reflectionCamera, renderPipelineType, planarReflectionCameraSetting,
-                        useDynamicBatching, useGPUInstancing, useLightsPerObject,
-                        shadowSettings, null, colorLUTResolution,
-                        pipelineLightSetting, false
+                        context, PlanarReflections._reflectionCamera, data, false
                     ); 
                     planarReflections.SetData();
                 }
@@ -82,10 +77,7 @@ namespace MSRP
                     }
                 }
                 renderer.Render(
-                    context, camera, renderPipelineType, cameraBufferSettings,
-                    useDynamicBatching, useGPUInstancing, useLightsPerObject,
-                    shadowSettings, postProcessingSettings, colorLUTResolution,
-                    pipelineLightSetting
+                    context, camera, data
                 );
             }
         }

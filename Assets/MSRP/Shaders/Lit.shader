@@ -70,6 +70,8 @@ Shader "MSRP/Lit"
 			#pragma multi_compile _ _LIGHTS_PER_OBJECT
 			#pragma multi_compile _ LIGHTMAP_ON
 			#pragma multi_compile _ LOD_FADE_CROSSFADE
+			#pragma multi_compile_fragment _ _REFLECTION_PROBE_BLENDING
+			#pragma multi_compile_fragment _ _REFLECTION_PROBE_BOX_PROJECTION
 			#pragma multi_compile_instancing
 			#pragma vertex LitPassVertex
 			#pragma fragment LitPassFragment
@@ -92,8 +94,8 @@ Shader "MSRP/Lit"
 			#pragma vertex ShadowCasterPassVertex
 			#pragma fragment ShadowCasterPassFragment
 			
-		#include "../ShaderLibrary/Common.hlsl"
-		#include "LitInput.hlsl"
+			#include "../ShaderLibrary/Common.hlsl"
+			#include "LitInput.hlsl"
 			#include "ShadowCasterPass.hlsl"
 			ENDHLSL
 		}
@@ -110,11 +112,35 @@ Shader "MSRP/Lit"
 			#pragma vertex MetaPassVertex
 			#pragma fragment MetaPassFragment
 			
-		#include "../ShaderLibrary/Common.hlsl"
-		#include "LitInput.hlsl"
+			#include "../ShaderLibrary/Common.hlsl"
+			#include "LitInput.hlsl"
 			#include "MetaPass.hlsl"
 			ENDHLSL
 		}
+		
+		Pass {
+            Name "MotionVectors"
+
+            Tags{ "LightMode" = "MotionVectors" }
+
+            Cull Back
+            ZWrite On
+            ZTest Less
+            
+            HLSLPROGRAM
+			#include "../ShaderLibrary/Common.hlsl"
+			#include "LitInput.hlsl"
+            #include "VelocityBuffer.hlsl"
+
+            #pragma vertex vert_velocity
+            #pragma fragment frag_velocity
+
+            #pragma enable_d3d11_debug_symbols
+
+            #define SHADERPASS SHADERPASS_MOTION_VECTORS
+
+            ENDHLSL
+        }
 	}
 	CustomEditor "MSRP.Editor.CustomShaderGUI"
 }
