@@ -81,7 +81,7 @@ float3 SampleLightProbe (Surface surface) {
 	#endif
 }
 
-float3 SampleEnvironment (Surface surfaceWS, BRDF brdf) {
+float3 GlossyEnvironmentReflection (Surface surfaceWS, BRDF brdf) {
 
 	#if defined(_REFLECTION_PLANARREFLECTION) && defined(_ENABLE_PLANARREFLECTION)
 	float2 p11_22 = float2(unity_CameraInvProjection._11, unity_CameraInvProjection._22) * 10;
@@ -96,21 +96,22 @@ float3 SampleEnvironment (Surface surfaceWS, BRDF brdf) {
 	return SAMPLE_TEXTURE2D_LOD(_PlanarReflectionTexture, sampler_linear_clamp, reflectionUV, 6 * brdf.roughness).rgb;//planar reflection
 	#else
 
-	
 	float3 reflectVector = reflect(-surfaceWS.viewDirectionWS, surfaceWS.normalWS);
+	#ifdef _REFLECTION_PROBE_BOX_PROJECTION
+	reflectVector = BoxProjectedCubemapDirection(reflectVector, positionWS, unity_SpecCube0_ProbePosition, unity_SpecCube0_BoxMin, unity_SpecCube0_BoxMax);
+	#endif // _REFLECTION_PROBE_BOX_PROJECTION
 	float mip = PerceptualRoughnessToMipmapLevel(brdf.perceptualRoughness);
-	float4 environment = SAMPLE_TEXTURECUBE_LOD(unity_SpecCube0, samplerunity_SpecCube0, reflectVector, mip);
+	float4 environment = half4(SAMPLE_TEXTURECUBE_LOD(unity_SpecCube0, samplerunity_SpecCube0, reflectVector, mip));
 	return DecodeHDREnvironment(environment, unity_SpecCube0_HDR) * surfaceWS.occlusion;
 
 	#endif
-
 }
 
 GI GetGI(float2 lightMapUV, Surface surface, BRDF brdf)
 {
     GI gi;
     gi.diffuse = SampleLightMap(lightMapUV) + SampleLightProbe(surface);
-	gi.specular = SampleEnvironment(surface, brdf);
+	gi.specular = GlossyEnvironmentReflection(surface, brdf);
 	gi.shadowMask.always = false;
 	gi.shadowMask.distance = false;
 	gi.shadowMask.shadows = 1.0;

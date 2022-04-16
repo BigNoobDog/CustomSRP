@@ -53,6 +53,8 @@ namespace MSRP
 
         private PostProcessingSetting postProcessingSettings;
 
+        private RenderPipelineType renderPipelineType;
+
         private int colorLUTResolution;
         
         PipelineLightSetting pipelineLightSetting;
@@ -85,7 +87,7 @@ namespace MSRP
             missingTexture.Apply(true, true);
         }
         
-        void Setup()
+        void SetupForward()
         {
             context.SetupCameraProperties(camera);
             CameraClearFlags flags = camera.clearFlags;
@@ -155,6 +157,7 @@ namespace MSRP
             postProcessingSettings = data.postProcessingSettings;
             colorLUTResolution = (int)data.colorLUTResolution;
             pipelineLightSetting = data.pipelineLightSetting;
+            renderPipelineType = data.renderPipelineType;
 
             var crpCamera = camera.GetComponent<CustomRenderPipelineCamera>();
             CameraSettings cameraSettings =
@@ -204,10 +207,6 @@ namespace MSRP
                 bufferSize.x, bufferSize.y
             ));
             ExecuteBuffer();
-            // if (drawAddtion)
-            // {
-                //velocityBufferRenderer.Setup(context, camera, cullingResults, bufferSize);
-            // }
             
             lighting.Setup(
                 context, cullingResults, shadowSettings, useLightsPerObject,
@@ -223,18 +222,28 @@ namespace MSRP
                 bufferSettings.bicubicRescaling, bufferSettings.fxaaSetting
             );
             buffer.EndSample(SampleName);
-            
-            Setup();
-            
-            if (drawAddtion && (camera.cameraType == CameraType.Game || camera.cameraType == CameraType.SceneView))
+
+            switch (renderPipelineType)
             {
-                lighting.DrawAreaLight();
-            }
+                case RenderPipelineType.Forward: 
+                    SetupForward();
             
-            DrawVisibleGeometry(
-                useDynamicBatching, useGPUInstancing, useLightsPerObject,
-                cameraSettings.renderingLayerMask
-            );
+                    if (drawAddtion && (camera.cameraType == CameraType.Game || camera.cameraType == CameraType.SceneView))
+                    {
+                        lighting.DrawAreaLight();
+                    }
+            
+                    DrawForwardVisibleGeometry(
+                        useDynamicBatching, useGPUInstancing, useLightsPerObject,
+                        cameraSettings.renderingLayerMask
+                    );
+                    break;
+                case RenderPipelineType.Deferred:
+                    
+                    break;
+                default:
+                    break;;
+            }
             DrawUnsupportedShaders();
             DrawGizmosBeforeFX();
             
@@ -308,7 +317,7 @@ namespace MSRP
             buffer.Clear();
         }
 
-        void DrawVisibleGeometry(
+        void DrawForwardVisibleGeometry(
             bool useDynamicBatching, bool useGPUInstancing, bool useLightsPerObject,
             int renderingLayerMask
         )

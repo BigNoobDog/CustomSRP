@@ -12,7 +12,7 @@ namespace MSRP
 
         private const string shaderName = "Hidden/MSRP/PreIntegrateBrdfLUT";
 
-        private const int size = 128;
+        private const int size = 512;
         
         CommandBuffer buffer = new CommandBuffer
         {

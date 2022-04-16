@@ -104,6 +104,6 @@ TEXTURE2D(_PlanarReflectionTexture);
 TEXTURECUBE(unity_SpecCube0);
 SAMPLER(samplerunity_SpecCube0);
 
-TEXTURECUBE(_PreIntegrateBRDF);
+TEXTURE2D(_PreIntegrateBRDF);
 SAMPLER(sampler_PreIntegrateBRDF);
 #endif

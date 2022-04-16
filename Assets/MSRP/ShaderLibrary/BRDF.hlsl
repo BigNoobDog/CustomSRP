@@ -68,15 +68,38 @@ void InitializeBRDFData(Surface surface, out BRDF brdf, bool applyAlphaToDiffuse
     brdf.fresnel = saturate(surface.smoothness + 1.0 - oneMinusReflectivity);
 }
 
+half3 EnvBRDF( half3 SpecularColor, half Roughness, half NoV )
+{
+    // Importance sampled preintegrated G * F
+    float2 AB = SAMPLE_TEXTURE2D_LOD(_PreIntegrateBRDF, sampler_PreIntegrateBRDF, float2(NoV, Roughness), 0).xy;
+
+    // Anything less than 2% is physically impossible and is instead considered to be shadowing 
+    float3 GF = SpecularColor * AB.x + saturate( 50.0 * SpecularColor.g ) * AB.y;
+    return GF;
+}
+
+float3 FresnelSchlickRoughness(float cosTheta, float3 F0, float roughness)
+{
+    return F0 + (max((1.0 - roughness), F0) - F0) * pow(1.0 - cosTheta, 5.0);
+}   
+
 float3 GetIndirectBRDF(
-    Surface surface, BRDF brdf, float3 diffuse, float3 specular
+    Surface surface, BRDF brdf, float3 GIDiffuse, float3 GISpecular
 )
 {
-    float fresnelStrength = surface.fresnelStrength *
-        Pow4(1.0 - saturate(dot(surface.normalWS, surface.viewDirectionWS)));
-    float3 reflection = specular * lerp(brdf.specular, brdf.fresnel, fresnelStrength);
-    reflection /= brdf.roughness * brdf.roughness + 1.0;
-    return diffuse * brdf.diffuse + reflection;
+    float NoV = dot(surface.normalWS, surface.viewDirectionWS);
+    float3 F = FresnelSchlickRoughness(max(NoV, 0.0), brdf.specular, brdf.roughness);
+
+    float3 kS = F;
+    float3 kD = 1.0 - kS;
+    kD *= 1.0 - surface.metallic;
+    float3 irradiance = GIDiffuse;
+    float3 diffuse    = irradiance * brdf.diffuse;
+    float3 envBRDF  = EnvBRDF(brdf.specular, brdf.roughness, NoV);
+    float3 specular = GISpecular * envBRDF;
+
+    float3 ambient = (kD * diffuse + specular); 
+    return ambient;
 }
 
 float3 GetDirectBRDF(Surface surface, BRDF brdf, float3 lightDirWS)
@@ -92,7 +115,7 @@ float3 GetDirectBRDF(Surface surface, BRDF brdf, float3 lightDirWS)
     float D = D_GGX_UE(a2, NoH);
     float Vis = Vis_SmithJointApprox_UE(a2, NoV, NoL);
     float3 F = F_Schlick_UE(brdf.specular, VoH);
-    return (D * Vis) * F;
+    return clamp((D * Vis) * F, 0.0, 100.0);
 }
 
 #endif
