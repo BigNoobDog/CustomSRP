@@ -20,6 +20,9 @@ Shader "MSRP/Unlit"
 		ENDHLSL
 
 		Pass {
+			Tags {
+				"LightMode" = "CustomLitForward"
+			}
 			Blend [_SrcBlend] [_DstBlend], One OneMinusSrcAlpha
             Cull[_Cull]
 			ZWrite [_ZWrite]

@@ -22,7 +22,7 @@ MonoBehaviour:
       copyDepthReflection: 1
       renderScale: 1
       bicubicRescaling: 0
-      antiAliasingType: 2
+      antiAliasingType: 1
       fxaaSetting:
         enabled: 0
         fixedThreshold: 0.0833

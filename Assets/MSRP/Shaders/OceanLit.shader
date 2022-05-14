@@ -63,7 +63,7 @@
 			#pragma multi_compile _ LOD_FADE_CROSSFADE
             #pragma multi_compile_fog
 			#pragma multi_compile_instancing
-			#pragma vertex LitPassVertex
+			#pragma vertex LitForwardPassVertex
 			#pragma fragment LitPassFragment
 			#include "OceanLitPass.hlsl"
 			ENDHLSL

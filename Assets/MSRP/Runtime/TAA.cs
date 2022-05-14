@@ -1,7 +1,6 @@
 ﻿using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Rendering;
-using UnityEngine.Rendering.HighDefinition;
 
 namespace MSRP
 {
@@ -154,7 +153,7 @@ namespace MSRP
 
         public override void ClearUp()
         {
-            Debug.Log("new TAA");
+            // Debug.Log("new TAA");
             if(historyBuffer!=null)
             {
                 ClearRT(ref historyBuffer[0]);
