@@ -31,6 +31,14 @@ float4 unity_ProbeVolumeParams;
 float4x4 unity_ProbeVolumeWorldToObject;
 float4 unity_ProbeVolumeSizeInv;
 float4 unity_ProbeVolumeMin;
+
+// //X : Use last frame positions (right now skinned meshes are the only objects that use this
+// //Y : Force No Motion
+// //Z : Z bias value
+// float4 unity_MotionVectorsParams;
+//
+// // Previous Model Matrix
+// float4x4 unity_MatrixPreviousM;
 CBUFFER_END
 
 float4x4 unity_MatrixVP;
@@ -47,15 +55,6 @@ float4 unity_OrthoParams;
 float4 _ProjectionParams;
 float4 _ScreenParams;
 float4 _ZBufferParams;
-
-
-//X : Use last frame positions (right now skinned meshes are the only objects that use this
-//Y : Force No Motion
-//Z : Z bias value
-float4 unity_MotionVectorsParams;
-
-// Previous Model Matrix
-float4x4 unity_MatrixPreviousM;
 
 
 #if UNITY_REVERSED_Z

@@ -1,5 +1,6 @@
 ﻿using UnityEngine;
 using UnityEngine.Rendering;
+using UnityEngine.Rendering.Universal;
 
 namespace MSRP
 {
@@ -30,6 +31,8 @@ namespace MSRP
             sourceTextureId = Shader.PropertyToID("_SourceTexture"),
             srcBlendId = Shader.PropertyToID("_CameraSrcBlend"),
             dstBlendId = Shader.PropertyToID("_CameraDstBlend");
+
+        private RenderTargetIdentifier[] gBufferIdentifiers;
 
         static CameraSettings defaultCameraSettings = new CameraSettings();
 
@@ -64,7 +67,7 @@ namespace MSRP
         private RenderPipelineType renderPipelineType;
 
         private int colorLUTResolution;
-        
+
         PipelineLightSetting pipelineLightSetting;
 
         Vector2Int bufferSize;
@@ -72,9 +75,9 @@ namespace MSRP
         Material material;
 
         Texture2D missingTexture;
-        
+
         private ComputeShader areaLightLut;
-        
+
         private Camera pr_camera;
 
         private TAA taa = new TAA();
@@ -82,6 +85,10 @@ namespace MSRP
         private CameraBufferSettings bufferSettings;
 
         private VelocityBufferRenderer velocityBufferRenderer = new VelocityBufferRenderer();
+
+        private Shader deferredLightingShader = Shader.Find("Hidden/MSRP/DeferredLighting");
+
+        private Material deferredLightingMat;
 
         public CameraRenderer(Shader shader)
         {
@@ -94,7 +101,7 @@ namespace MSRP
             missingTexture.SetPixel(0, 0, Color.white * 0.5f);
             missingTexture.Apply(true, true);
         }
-        
+
         void SetupForward()
         {
             context.SetupCameraProperties(camera);
@@ -136,7 +143,7 @@ namespace MSRP
             // buffer.EndSample(SampleName);
             ExecuteBuffer();
         }
-        
+
         void SetupDeferred()
         {
             context.SetupCameraProperties(camera);
@@ -150,6 +157,7 @@ namespace MSRP
                 {
                     flags = CameraClearFlags.Color;
                 }
+
                 buffer.GetTemporaryRT(
                     colorAttachmentId, bufferSize.x, bufferSize.y,
                     0, FilterMode.Bilinear, useHDR ? RenderTextureFormat.DefaultHDR : RenderTextureFormat.Default
@@ -183,7 +191,7 @@ namespace MSRP
                     gBufferFAttachmetnId, bufferSize.x, bufferSize.y,
                     0, FilterMode.Bilinear, useHDR ? RenderTextureFormat.DefaultHDR : RenderTextureFormat.Default
                 );
-                
+
                 RenderTargetIdentifier[] GBufferAttachmentIds = new RenderTargetIdentifier[]
                 {
                     gBufferAAttachmetnId, gBufferBAttachmetnId, gBufferCAttachmetnId,
@@ -213,7 +221,7 @@ namespace MSRP
         }
 
         public void Render(
-            ScriptableRenderContext context, 
+            ScriptableRenderContext context,
             Camera camera,
             RenderPiplineData data,
             bool drawAddtion = true
@@ -264,8 +272,8 @@ namespace MSRP
             if (useScaledRendering)
             {
                 renderScale = Mathf.Clamp(renderScale, renderScaleMin, renderScaleMax);
-                bufferSize.x = (int) (camera.pixelWidth * renderScale);
-                bufferSize.y = (int) (camera.pixelHeight * renderScale);
+                bufferSize.x = (int)(camera.pixelWidth * renderScale);
+                bufferSize.y = (int)(camera.pixelHeight * renderScale);
             }
             else
             {
@@ -279,15 +287,16 @@ namespace MSRP
                 bufferSize.x, bufferSize.y
             ));
             ExecuteBuffer();
-            
+
             lighting.Setup(
                 context, cullingResults, shadowSettings, useLightsPerObject,
                 cameraSettings.maskLights ? cameraSettings.renderingLayerMask : -1,
                 pipelineLightSetting
             );
 
-            bufferSettings.fxaaSetting.enabled = 
-                (cameraSettings.allowFXAA && bufferSettings.antiAliasingType == CameraBufferSettings.AntiAliasingType.FXAA);
+            bufferSettings.fxaaSetting.enabled =
+                (cameraSettings.allowFXAA &&
+                 bufferSettings.antiAliasingType == CameraBufferSettings.AntiAliasingType.FXAA);
             postProcessingStack.Setup(
                 context, camera, bufferSize, postProcessingSettings, cameraSettings.keepAlpha, useHDR,
                 colorLUTResolution, cameraSettings.finalBlendMode,
@@ -298,19 +307,20 @@ namespace MSRP
 
             switch (renderPipelineType)
             {
-                case RenderPipelineType.Forward: 
+                case RenderPipelineType.Forward:
                     SetupForward();
 
                     if (bufferSettings.antiAliasingType == CameraBufferSettings.AntiAliasingType.TAA)
                     {
                         taa.SetUp(context, camera, bufferSettings.taaSetting);
                     }
-            
-                    if (drawAddtion && (camera.cameraType == CameraType.Game || camera.cameraType == CameraType.SceneView))
+
+                    if (drawAddtion && (camera.cameraType == CameraType.Game ||
+                                        camera.cameraType == CameraType.SceneView))
                     {
                         lighting.DrawAreaLight();
                     }
-            
+
                     DrawForwardVisibleGeometry(
                         useDynamicBatching, useGPUInstancing, useLightsPerObject,
                         cameraSettings.renderingLayerMask
@@ -323,30 +333,33 @@ namespace MSRP
                     {
                         taa.SetUp(context, camera, bufferSettings.taaSetting);
                     }
-            
-                    if (drawAddtion && (camera.cameraType == CameraType.Game || camera.cameraType == CameraType.SceneView))
+
+                    if (drawAddtion && (camera.cameraType == CameraType.Game ||
+                                        camera.cameraType == CameraType.SceneView))
                     {
                         lighting.DrawAreaLight();
                     }
-            
+
                     DrawDeferredVisibleGeometry(
                         useDynamicBatching, useGPUInstancing, useLightsPerObject,
                         cameraSettings.renderingLayerMask
                     );
-                    
+
                     break;
                 default:
-                    break;;
+                    break;
+                    ;
             }
-            
+
             DrawUnsupportedShaders();
             DrawGizmosBeforeFX();
-            
+
             if (bufferSettings.antiAliasingType == CameraBufferSettings.AntiAliasingType.TAA)
             {
-                taa.Render(colorAttachmentId, bufferSize, useHDR ? RenderTextureFormat.DefaultHDR : RenderTextureFormat.Default);
+                taa.Render(colorAttachmentId, bufferSize,
+                    useHDR ? RenderTextureFormat.DefaultHDR : RenderTextureFormat.Default);
             }
-            
+
             if (postProcessingStack.IsActive)
             {
                 postProcessingStack.Render(colorAttachmentId);
@@ -361,7 +374,7 @@ namespace MSRP
             Cleanup();
             Submit();
         }
-        
+
         bool Cull(float maxShadowDistance)
         {
             if (camera.TryGetCullingParameters(out ScriptableCullingParameters p))
@@ -380,10 +393,9 @@ namespace MSRP
             velocityBufferRenderer.Cleanup();
             if (useIntermediateBuffer)
             {
-                
                 switch (renderPipelineType)
                 {
-                    case RenderPipelineType.Forward: 
+                    case RenderPipelineType.Forward:
                         buffer.ReleaseTemporaryRT(colorAttachmentId);
                         buffer.ReleaseTemporaryRT(depthAttachmentId);
                         if (useColorTexture)
@@ -395,6 +407,7 @@ namespace MSRP
                         {
                             buffer.ReleaseTemporaryRT(depthTextureId);
                         }
+
                         break;
                     case RenderPipelineType.Deferred:
                         buffer.ReleaseTemporaryRT(gBufferAAttachmetnId);
@@ -404,23 +417,30 @@ namespace MSRP
                         buffer.ReleaseTemporaryRT(gBufferEAttachmetnId);
                         buffer.ReleaseTemporaryRT(gBufferFAttachmetnId);
                         buffer.ReleaseTemporaryRT(depthAttachmentId);
+                        buffer.ReleaseTemporaryRT(colorAttachmentId);
+                        buffer.ReleaseTemporaryRT(depthAttachmentId);
                         if (useColorTexture)
                         {
                             buffer.ReleaseTemporaryRT(colorTextureId);
                         }
+
                         if (useDepthTexture)
                         {
                             buffer.ReleaseTemporaryRT(depthTextureId);
                         }
+
                         break;
                     default:
-                        break;;
+                        break;
+                        ;
                 }
             }
+
             if (bufferSettings.antiAliasingType != CameraBufferSettings.AntiAliasingType.TAA)
             {
                 taa.ClearUp();
             }
+
             PreIntegrateBrdf.ClearUp();
         }
 
@@ -466,7 +486,7 @@ namespace MSRP
             drawingSettings.SetShaderPassName(1, litForwardShaderTagId);
 
             var filteringSettings = new FilteringSettings(
-                RenderQueueRange.opaque, renderingLayerMask: (uint) renderingLayerMask
+                RenderQueueRange.opaque, renderingLayerMask: (uint)renderingLayerMask
             );
 
             context.DrawRenderers(
@@ -487,7 +507,7 @@ namespace MSRP
                 cullingResults, ref drawingSettings, ref filteringSettings
             );
         }
-        
+
         void DrawDeferredVisibleGeometry(
             bool useDynamicBatching, bool useGPUInstancing, bool useLightsPerObject,
             int renderingLayerMask
@@ -517,12 +537,14 @@ namespace MSRP
             drawingSettings.SetShaderPassName(1, litGBufferShaderTagId);
 
             var filteringSettings = new FilteringSettings(
-                RenderQueueRange.opaque, renderingLayerMask: (uint) renderingLayerMask
+                RenderQueueRange.opaque, renderingLayerMask: (uint)renderingLayerMask
             );
 
             context.DrawRenderers(
                 cullingResults, ref drawingSettings, ref filteringSettings
             );
+
+            DeferredLightingPass();
 
             context.DrawSkybox(camera);
             if (useColorTexture || useDepthTexture)
@@ -537,6 +559,42 @@ namespace MSRP
             context.DrawRenderers(
                 cullingResults, ref drawingSettings, ref filteringSettings
             );
+        }
+
+        void DeferredLightingPass()
+        {
+            gBufferIdentifiers = new RenderTargetIdentifier[]
+            {
+                gBufferAAttachmetnId, gBufferBAttachmetnId, gBufferCAttachmetnId,
+                gBufferDAttachmetnId, gBufferEAttachmetnId, gBufferFAttachmetnId
+            };
+            buffer.SetGlobalTexture(gBufferAAttachmetnId, gBufferIdentifiers[0]);
+            buffer.SetGlobalTexture(gBufferBAttachmetnId, gBufferIdentifiers[1]);
+            buffer.SetGlobalTexture(gBufferCAttachmetnId, gBufferIdentifiers[2]);
+            buffer.SetGlobalTexture(gBufferDAttachmetnId, gBufferIdentifiers[3]);
+            buffer.SetGlobalTexture(gBufferEAttachmetnId, gBufferIdentifiers[4]);
+            buffer.SetGlobalTexture(gBufferFAttachmetnId, gBufferIdentifiers[5]);
+
+            if (!deferredLightingMat)
+            {
+                deferredLightingMat = new Material(deferredLightingShader);
+            }
+
+            buffer.SetRenderTarget(
+                colorAttachmentId,
+                RenderBufferLoadAction.DontCare, RenderBufferStoreAction.Store,
+                depthAttachmentId,
+                RenderBufferLoadAction.DontCare, RenderBufferStoreAction.Store
+            );
+            
+            // buffer.SetRenderTarget(
+            //     colorAttachmentId, RenderBufferLoadAction.DontCare, RenderBufferStoreAction.Store
+            // );
+            buffer.DrawProcedural(
+                Matrix4x4.identity, deferredLightingMat, (int)0, MeshTopology.Triangles, 3
+            );
+
+            ExecuteBuffer();
         }
 
         void CopyAttachments()
@@ -602,8 +660,8 @@ namespace MSRP
 
         void DrawFinal(CameraSettings.FinalBlendMode finalBlendMode)
         {
-            buffer.SetGlobalFloat(srcBlendId, (float) finalBlendMode.source);
-            buffer.SetGlobalFloat(dstBlendId, (float) finalBlendMode.destination);
+            buffer.SetGlobalFloat(srcBlendId, (float)finalBlendMode.source);
+            buffer.SetGlobalFloat(dstBlendId, (float)finalBlendMode.destination);
             buffer.SetGlobalTexture(sourceTextureId, colorAttachmentId);
             buffer.SetRenderTarget(
                 BuiltinRenderTextureType.CameraTarget,

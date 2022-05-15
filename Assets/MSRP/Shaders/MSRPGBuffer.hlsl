@@ -1,6 +1,9 @@
 ﻿#ifndef MSRP_GBUFFER_PASS
 #define MSRP_GBUFFER_PASS
 
+#include "../ShaderLibrary/Surface.hlsl"
+#include "../ShaderLibrary/BRDF.hlsl"
+
 struct FragmentOutput
 {
     half4 GBuffer0 : SV_Target0;
@@ -33,9 +36,8 @@ FragmentOutput EncodeGBuffer(Surface surface, BRDF brdf, float3 gi, float3 emiss
     return output;
 }
 
-void DecodeGBuffer()
+void DecodeGBuffer(inout Surface surface, inout BRDF brdf)
 {
-    
 }
 
 #endif

@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: Custom Rneder Pipeline Asset
   m_EditorClassIdentifier: 
   data:
-    renderPipelineType: 0
+    renderPipelineType: 1
     cameraBuffer:
       allowHDR: 1
       copyColor: 1

@@ -91,12 +91,12 @@ Shader "MSRP/Lit"
 			#pragma shader_feature _ _SHADOWS_CLIP _SHADOWS_DITHER
 			#pragma multi_compile _ LOD_FADE_CROSSFADE
 			#pragma multi_compile_instancing
-			#pragma vertex ShadowCasterPassVertex
-			#pragma fragment ShadowCasterPassFragment
-			
 			#include "../ShaderLibrary/Common.hlsl"
 			#include "LitInput.hlsl"
 			#include "ShadowCasterPass.hlsl"
+			#pragma vertex ShadowCasterPassVertex
+			#pragma fragment ShadowCasterPassFragment
+			
 			ENDHLSL
 		}
 
@@ -109,12 +109,12 @@ Shader "MSRP/Lit"
 
 			HLSLPROGRAM
 			#pragma target 3.5
-			#pragma vertex MetaPassVertex
-			#pragma fragment MetaPassFragment
 			
 			#include "../ShaderLibrary/Common.hlsl"
 			#include "LitInput.hlsl"
 			#include "MetaPass.hlsl"
+			#pragma vertex MetaPassVertex
+			#pragma fragment MetaPassFragment
 			ENDHLSL
 		}
 		
@@ -170,9 +170,9 @@ Shader "MSRP/Lit"
 			#pragma multi_compile_fragment _ _REFLECTION_PROBE_BLENDING
 			#pragma multi_compile_fragment _ _REFLECTION_PROBE_BOX_PROJECTION
 			#pragma multi_compile_instancing
+			#include "LitGBufferPass.hlsl"
 			#pragma vertex LitGBufferPassVertex
 			#pragma fragment LitGBufferPassFragment
-			#include "LitGBufferPass.hlsl"
 			ENDHLSL
 		}
 	}

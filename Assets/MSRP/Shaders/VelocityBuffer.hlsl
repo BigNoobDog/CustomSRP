@@ -36,9 +36,9 @@ float2 frag_velocity(Varyings input) : SV_TARGET
     Fragment fragment = GetFragment(input.positionCS_SS);
 
     //float depth = tex2D(_CameraDepthTex, i.uv.xy).r;
-    float3 worldPos = mul(unity_MatrixPreviousM, float4(input.positionOS.xyz, 1));
-    if (unity_MotionVectorsParams.y == 0)
-        worldPos = input.positionWS;
+    float3 worldPos = 0;/* = mul(unity_MatrixPreviousM, float4(input.positionOS.xyz, 1))*/;
+    // if (unity_MotionVectorsParams.y == 0)
+    //     worldPos = input.positionWS;
     float4 pClip = mul(_PreviousGPUViewProjection, float4(worldPos.xyz, 1));
     pClip /= pClip.w;
     float2 currentScreenPos = fragment.screenUV;
